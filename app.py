@@ -19,7 +19,7 @@ download_weights()
 
 from pipeline.orchestrator import run_animation
 
-@spaces.GPU(duration=250)
+@spaces.GPU(duration=300)
 def process_animation(avatar_image, driving_video, enhance_face):
     try:
         if avatar_image is None or driving_video is None:
@@ -48,4 +48,5 @@ with gr.Blocks(title="Enliven v2") as demo:
         outputs=[output_video, status_text]
     )
 
-demo.launch()
+if __name__ == "__main__":
+    demo.launch(server_name="0.0.0.0", server_port=7860)
