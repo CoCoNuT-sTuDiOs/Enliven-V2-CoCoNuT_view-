@@ -1,3 +1,14 @@
+---
+title: Enliven V2
+emoji: 🎬
+colorFrom: purple
+colorTo: blue
+sdk: gradio
+sdk_version: "4.44.0"
+app_file: app.py
+pinned: false
+---
+
 # 🎬 Enliven v2 - Half-Body Avatar Animation
 
 **Bring your static photos to life with realistic motion transfer.**
@@ -20,10 +31,10 @@ Transform a static avatar photo into an animated half-body video using real moti
 
 ## Technical Stack
 
-- **Skeleton extraction:** DWPose (2D keypoints + hand landmarks)
-- **Animation:** EchoMimicV2 (diffusion-based)
-- **Enhancement:** GFPGAN v1.3 (optional)
-- **UI:** Gradio + HF Spaces
+- Skeleton extraction: DWPose (2D keypoints + hand landmarks)
+- Animation: EchoMimicV2 (diffusion-based)
+- Enhancement: GFPGAN v1.3 (optional)
+- UI: Gradio + HF Spaces
 
 ## License
 
