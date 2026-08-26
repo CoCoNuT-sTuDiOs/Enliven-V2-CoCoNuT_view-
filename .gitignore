@@ -1,0 +1,4 @@
+vendor/
+pretrained_weights/
+*.pth
+pretrained_weights/
