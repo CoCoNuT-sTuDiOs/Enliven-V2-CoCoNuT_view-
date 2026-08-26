@@ -1,8 +1,22 @@
 
 import os
+import types
+
+# Shim: gradio_client schema introspection chokes on a bare boolean JSON-schema value
+from gradio_client import utils as gradio_client_utils
+
+_original_get_type = gradio_client_utils.get_type
+
+def _safe_get_type(schema):
+    if isinstance(schema, bool):
+        return "boolean" if schema else "None"
+    return _original_get_type(schema)
+
+gradio_client_utils.get_type = _safe_get_type
+
 import gradio as gr
-from pathlib import Path
 import spaces
+from pathlib import Path
 
 def download_weights():
     weights_dir = Path("pretrained_weights")
@@ -49,4 +63,5 @@ with gr.Blocks(title="Enliven v2") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.queue()
+    demo.launch()
