@@ -1,4 +1,3 @@
-
 import json
 import cv2
 import numpy as np
@@ -10,42 +9,34 @@ class AnimationGenerator:
             from echomimicv2 import EchoMimicV2
             self.model = EchoMimicV2()
         except Exception as e:
-            print(f"EchoMimicV2 not installed yet: {e}")
+            print("EchoMimicV2 not installed yet: " + str(e))
             self.model = None
-    
-    def animate(self, avatar_photo_path: str, skeleton_path: str) -> str:
-        """Animate avatar using skeleton data"""
-        # Load skeleton
-        with open(skeleton_path, 'r') as f:
+
+    def animate(self, avatar_photo_path: str, skeleton_path: str, audio_path: str) -> str:
+        with open(skeleton_path, "r") as f:
             skeleton_data = json.load(f)
-        
-        print(f"📷 Avatar: {avatar_photo_path}")
-        print(f"🦴 Skeleton frames: {skeleton_data['total_frames']}")
-        
+
+        total_frames = skeleton_data["total_frames"]
+        print("Avatar: " + avatar_photo_path)
+        print("Audio: " + audio_path)
+        print("Skeleton frames: " + str(total_frames))
+
         if self.model is None:
-            print("⚠️  EchoMimicV2 not ready, placeholder mode")
+            print("EchoMimicV2 not wired in yet - real inference pending")
             return self._placeholder_animation(avatar_photo_path, skeleton_data)
-        
-        # TODO: Implement EchoMimicV2 inference
-        # Input: avatar photo + skeleton sequence + hand poses
-        # Output: animated video frames
-        
+
         return "output_animation.mp4"
-    
+
     def _placeholder_animation(self, avatar_path: str, skeleton_data: Dict) -> str:
-        """Placeholder: copy avatar frames to create video"""
-        import cv2
-        
         avatar = cv2.imread(avatar_path)
         h, w, _ = avatar.shape
-        
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter('/kaggle/working/outputs/animation.mp4', fourcc, 25.0, (w, h))
-        
-        # Write same frame N times
-        for i in range(skeleton_data['total_frames']):
+
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter("/tmp/animation.mp4", fourcc, 25.0, (w, h))
+
+        for i in range(skeleton_data["total_frames"]):
             out.write(avatar)
-        
+
         out.release()
-        print(f"✅ Placeholder animation: /kaggle/working/outputs/animation.mp4")
-        return "/kaggle/working/outputs/animation.mp4"
+        print("Placeholder animation: /tmp/animation.mp4")
+        return "/tmp/animation.mp4"
