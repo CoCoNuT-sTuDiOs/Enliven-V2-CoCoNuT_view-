@@ -10,3 +10,9 @@ DWPoses>=0.1.0
 onnxruntime
 huggingface_hub==0.25.2
 matplotlib
+gradio==5.1.0
+omegaconf
+diffusers
+transformers
+moviepy
+decord

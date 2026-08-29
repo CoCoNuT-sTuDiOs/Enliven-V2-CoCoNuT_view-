@@ -11,6 +11,18 @@ import spaces
 from pathlib import Path
 from huggingface_hub import snapshot_download
 
+def download_ffmpeg():
+    ffmpeg_dir = Path("ffmpeg-4.4-amd64-static")
+    if not ffmpeg_dir.exists():
+        print("Downloading static ffmpeg...")
+        os.system("wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-4.4-amd64-static.tar.xz")
+        os.system("tar -xf ffmpeg-4.4-amd64-static.tar.xz")
+    ffmpeg_path = str(ffmpeg_dir.resolve())
+    os.environ["FFMPEG_PATH"] = ffmpeg_path
+    if ffmpeg_path not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{ffmpeg_path}:{os.environ['PATH']}"
+    print("ffmpeg ready")
+
 def download_weights():
     weights_dir = Path("pretrained_weights")
     if not weights_dir.exists():
@@ -21,9 +33,6 @@ def download_weights():
         os.system("cd pretrained_weights && wget -q https://huggingface.co/BadToBest/EchoMimicV2/resolve/main/motion_module.pth")
         os.system("cd pretrained_weights && wget -q https://huggingface.co/BadToBest/EchoMimicV2/resolve/main/pose_encoder.pth")
 
-        # These 3 are multi-file diffusers folders (config.json + weights), not single
-        # files, so wget-by-guessed-filename isn't safe — pull the exact subfolders
-        # from the same BadToBest/EchoMimicV2 repo via snapshot_download instead.
         print("Downloading vae/base-model/audio-processor folders...")
         snapshot_download(
             repo_id="BadToBest/EchoMimicV2",
@@ -31,6 +40,8 @@ def download_weights():
             local_dir="pretrained_weights",
         )
         print("Weights ready")
+
+download_ffmpeg()
 download_weights()
 from pipeline.orchestrator import run_animation, extract_skeleton_cpu
 def process_skeleton_only(driving_video):
