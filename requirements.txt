@@ -16,3 +16,6 @@ diffusers
 transformers
 moviepy
 decord
+einops==0.8.0
+accelerate==1.1.1
+safetensors

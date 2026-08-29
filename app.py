@@ -15,7 +15,7 @@ def download_ffmpeg():
     ffmpeg_dir = Path("ffmpeg-4.4-amd64-static")
     if not ffmpeg_dir.exists():
         print("Downloading static ffmpeg...")
-        os.system("wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-4.4-amd64-static.tar.xz")
+        os.system("wget -q https://www.johnvansickle.com/ffmpeg/old-releases/ffmpeg-4.4-amd64-static.tar.xz")
         os.system("tar -xf ffmpeg-4.4-amd64-static.tar.xz")
     ffmpeg_path = str(ffmpeg_dir.resolve())
     os.environ["FFMPEG_PATH"] = ffmpeg_path
