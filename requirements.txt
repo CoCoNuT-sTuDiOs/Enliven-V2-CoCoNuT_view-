@@ -12,7 +12,6 @@ onnxruntime
 huggingface_hub==0.25.2
 matplotlib
 gradio==5.1.0
-gradio_client==1.4.3
 omegaconf==2.3.0
 diffusers==0.31.0
 transformers>=4.46.3
