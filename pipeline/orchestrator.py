@@ -49,13 +49,24 @@ def generate_animation_gpu(avatar_photo_path: str, skeleton_path: str, audio_pat
     VideoOperations.mux_audio(silent_path, audio_path, final_path, fps=fps)
     return final_path
 
-def enhance_face_gpu(video_path: str) -> str:
-    """GPU stage. Only this should be wrapped in @spaces.GPU by the caller."""
+def enhance_face_gpu(video_path: str, audio_path: str) -> str:
+    """GPU stage. Only this should be wrapped in @spaces.GPU by the caller.
+    video_path here already has audio muxed in (from generate_animation_gpu), but
+    enhance_video() re-encodes frame-by-frame via cv2.VideoWriter, which is silent —
+    so audio has to be re-muxed onto the enhanced output using the ORIGINAL audio_path
+    (re-extracting audio from video_path itself would just be re-muxing the same
+    audio anyway, so going straight to the source is simpler and equally correct).
+    """
     print("[Stage 3/4] Enhancing face quality (GPU)...")
     face_enhancer = FaceEnhancer()
-    enhanced_output = "/tmp/animation_enhanced.mp4"
-    face_enhancer.enhance_video(video_path, enhanced_output)
-    return enhanced_output
+
+    fps = VideoOperations.get_video_info(video_path)["fps"]  # preserve the real fps, don't assume 24 here too
+    silent_enhanced_path = "/tmp/animation_enhanced_silent.mp4"
+    face_enhancer.enhance_video(video_path, silent_enhanced_path)
+
+    final_enhanced_path = "/tmp/animation_enhanced.mp4"
+    VideoOperations.mux_audio(silent_enhanced_path, audio_path, final_enhanced_path, fps=fps)
+    return final_enhanced_path
 
 def run_animation(avatar_path: str, video_path: str, audio_path: str, enhance_face: bool = False) -> str:
     """
@@ -68,7 +79,7 @@ def run_animation(avatar_path: str, video_path: str, audio_path: str, enhance_fa
     skeleton_output = extract_skeleton_cpu(video_path)
     animation_output = generate_animation_gpu(avatar_path, skeleton_output, audio_path)
     if enhance_face:
-        animation_output = enhance_face_gpu(animation_output)
+        animation_output = enhance_face_gpu(animation_output, audio_path)
     else:
         print("[Stage 3/4] Face enhancement skipped")
     print("[Stage 4/4] Finalizing output...")
