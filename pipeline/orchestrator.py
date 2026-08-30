@@ -1,17 +1,15 @@
 import json
 import numpy as np
+import torch
 from pathlib import Path
 from pipeline.skeleton import SkeletonExtractor
 from pipeline.animation import AnimationEngine
 from pipeline.enhance import FaceEnhancer
 from pipeline.video_ops import VideoOperations
 
-_animation_engine = None  # module-level singleton so load_models() only runs once per process
+_animation_engine = None
 
 def extract_skeleton_cpu(driving_video_path: str) -> str:
-    """CPU-only stage. No GPU needed, no quota consumed. Safe to run anytime.
-    Returns a directory of per-frame .npy files (EchoMimicV2's expected pose format).
-    """
     print("[Stage 1/4] Extracting skeleton from driving video (CPU)...")
     extractor = SkeletonExtractor()
     skeleton = extractor.extract_skeleton(driving_video_path)
@@ -22,23 +20,24 @@ def extract_skeleton_cpu(driving_video_path: str) -> str:
     return npy_dir
 
 def _tensor_to_bgr_frames(video_tensor):
-    """animate() returns shape (1, C, T, H, W), float values in [0,1].
-    encode_frames_to_video() needs a list of (H, W, 3) uint8 BGR numpy arrays."""
-    video = video_tensor[0]  # (C, T, H, W)
-    video = video.permute(1, 2, 3, 0)  # (T, H, W, C)
-    video = (video.clamp(0, 1) * 255).byte().cpu().numpy()  # uint8, RGB order
-    frames = [frame[..., ::-1] for frame in video]  # RGB -> BGR per frame for cv2.VideoWriter
+    video = video_tensor[0]
+    video = video.permute(1, 2, 3, 0)
+    video = (video.clamp(0, 1) * 255).byte().cpu().numpy()
+    frames = [frame[..., ::-1] for frame in video]
     return frames
 
-def generate_animation_gpu(avatar_photo_path: str, skeleton_path: str, audio_path: str) -> str:
-    """GPU stage. Only this should be wrapped in @spaces.GPU by the caller."""
+def generate_animation_gpu(avatar_photo_path: str, skeleton_path: str, audio_path: str, force_fp32: bool = False) -> str:
+    """GPU stage. Only this should be wrapped in @spaces.GPU by the caller.
+    force_fp32: DIAGNOSTIC flag to test the fp16-NaN-instability hypothesis.
+    """
     global _animation_engine
     print("[Stage 2/4] Generating half-body animation (GPU)...")
-    if _animation_engine is None:
-        _animation_engine = AnimationEngine()
+    dtype = torch.float32 if force_fp32 else None
+    if _animation_engine is None or force_fp32:
+        _animation_engine = AnimationEngine(dtype=dtype)
     _animation_engine.load_models()
 
-    fps = 24  # must match animate()'s fps= arg below
+    fps = 24
     video_tensor = _animation_engine.animate(avatar_photo_path, skeleton_path, audio_path, fps=fps)
     frames = _tensor_to_bgr_frames(video_tensor)
 
@@ -50,34 +49,21 @@ def generate_animation_gpu(avatar_photo_path: str, skeleton_path: str, audio_pat
     return final_path
 
 def enhance_face_gpu(video_path: str, audio_path: str) -> str:
-    """GPU stage. Only this should be wrapped in @spaces.GPU by the caller.
-    video_path here already has audio muxed in (from generate_animation_gpu), but
-    enhance_video() re-encodes frame-by-frame via cv2.VideoWriter, which is silent —
-    so audio has to be re-muxed onto the enhanced output using the ORIGINAL audio_path
-    (re-extracting audio from video_path itself would just be re-muxing the same
-    audio anyway, so going straight to the source is simpler and equally correct).
-    """
     print("[Stage 3/4] Enhancing face quality (GPU)...")
     face_enhancer = FaceEnhancer()
-
-    fps = VideoOperations.get_video_info(video_path)["fps"]  # preserve the real fps, don't assume 24 here too
+    fps = VideoOperations.get_video_info(video_path)["fps"]
     silent_enhanced_path = "/tmp/animation_enhanced_silent.mp4"
     face_enhancer.enhance_video(video_path, silent_enhanced_path)
-
     final_enhanced_path = "/tmp/animation_enhanced.mp4"
     VideoOperations.mux_audio(silent_enhanced_path, audio_path, final_enhanced_path, fps=fps)
     return final_enhanced_path
 
-def run_animation(avatar_path: str, video_path: str, audio_path: str, enhance_face: bool = False) -> str:
-    """
-    Public API for Gradio UI - orchestrates CPU and GPU stages separately
-    so GPU quota is only spent on stages that actually need it.
-    """
+def run_animation(avatar_path: str, video_path: str, audio_path: str, enhance_face: bool = False, force_fp32: bool = False) -> str:
     print("=" * 60)
     print("ENLIVEN v2 - HALF-BODY ANIMATION PIPELINE")
     print("=" * 60)
     skeleton_output = extract_skeleton_cpu(video_path)
-    animation_output = generate_animation_gpu(avatar_path, skeleton_output, audio_path)
+    animation_output = generate_animation_gpu(avatar_path, skeleton_output, audio_path, force_fp32=force_fp32)
     if enhance_face:
         animation_output = enhance_face_gpu(animation_output, audio_path)
     else:
