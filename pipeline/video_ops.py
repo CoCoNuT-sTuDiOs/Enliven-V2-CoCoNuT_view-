@@ -1,7 +1,7 @@
-
 import cv2
 import numpy as np
 from typing import List
+
 
 class VideoOperations:
     @staticmethod
@@ -21,6 +21,24 @@ class VideoOperations:
         
         out.release()
         print(f"✅ Video saved: {output_path}")
+        return output_path
+
+    @staticmethod
+    def mux_audio(silent_video_path: str, audio_path: str, output_path: str, fps: float) -> str:
+        """Combine a silent video with the driving audio, matching the exact pattern
+        confirmed from EchoMimicV2's own infer.py: trim audio to the video's real
+        duration (frame_count / fps) before muxing, then re-encode with aac audio."""
+        from moviepy.editor import VideoFileClip, AudioFileClip
+
+        video_clip = VideoFileClip(silent_video_path)
+        n_frames = int(video_clip.duration * video_clip.fps)  # sanity, not used directly
+        duration = video_clip.reader.nframes / fps  # match real infer.py: L / final_fps
+
+        audio_clip = AudioFileClip(audio_path).set_duration(duration)
+        video_clip = video_clip.set_audio(audio_clip)
+        video_clip.write_videofile(output_path, codec="libx264", audio_codec="aac", threads=2)
+
+        print(f"✅ Muxed video+audio saved: {output_path}")
         return output_path
     
     @staticmethod
