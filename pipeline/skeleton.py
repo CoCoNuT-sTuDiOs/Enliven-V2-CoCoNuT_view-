@@ -33,7 +33,6 @@ class SkeletonExtractor:
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             pose_result = self.detector(Image.fromarray(rgb_frame))
 
-            # hands: fixed (2, 21, 2), normalized, -1 for missing points
             hands_raw = pose_result.get("hands", [])
             hands = np.full((2, 21, 2), -1.0, dtype=np.float32)
             hands_score = np.zeros((2, 21), dtype=np.float32)
@@ -43,14 +42,20 @@ class SkeletonExtractor:
                     x, y = float(kp[0]), float(kp[1])
                     if x != -1 and y != -1:
                         hands[hand_idx, pt_idx] = [x, y]
-                        hands_score[hand_idx, pt_idx] = 1.0  # DWPoses gives no real confidence here
+                        hands_score[hand_idx, pt_idx] = 1.0
+
+            # BUG FIX: bodies_candidate can be a numpy array straight from DWPoses'
+            # output — json.dump() can't serialize ndarrays. Force it to a plain
+            # list, same as we already do for hands/hands_score.
+            bodies_candidate = pose_result.get("bodies", {}).get("candidate", [])
+            if isinstance(bodies_candidate, np.ndarray):
+                bodies_candidate = bodies_candidate.tolist()
 
             poses.append({
                 "frame_id": frame_id,
                 "hands": hands.tolist(),
                 "hands_score": hands_score.tolist(),
-                # kept for completeness only — draw_pose_select_v2 never reads these
-                "bodies_candidate": pose_result.get("bodies", {}).get("candidate", []),
+                "bodies_candidate": bodies_candidate,
             })
             frame_id += 1
 
@@ -68,13 +73,11 @@ class SkeletonExtractor:
 
     def export_echomimic_npy(self, skeleton: Dict, output_dir: str, target_w: int = 768, target_h: int = 768):
         """Convert extracted skeleton into per-frame .npy files matching EchoMimicV2's
-        expected dict format. One file per frame: 0.npy, 1.npy, ... (matches infer.py indexing).
+        expected dict format. One file per frame: 0.npy, 1.npy, ...
         """
         out_dir = Path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Patch size == target canvas size (draw_pose_select_v2 always resizes to (W,H)
-        # before returning) so the paste box is the full canvas.
         draw_pose_params = (target_h, target_w, 0, target_h, 0, target_w)
 
         for frame in skeleton["poses"]:
