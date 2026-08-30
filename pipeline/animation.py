@@ -1,7 +1,17 @@
 import os
+import sys
+from pathlib import Path
+
+# The vendored EchoMimicV2 source uses absolute imports like `from src.models.____
+# import bla bla bla`, assuming `src/` sits at the project root (true in the real repo,
+# not true once nested under vendor/echomimicv2/). Put that folder on sys.path so
+# those absolute imports resolve no matter which vendor file uses that style.
+_VENDOR_ROOT = Path(__file__).resolve().parent.parent / "vendor" / "echomimicv2"
+if str(_VENDOR_ROOT) not in sys.path:
+    sys.path.insert(0, str(_VENDOR_ROOT))
+
 import torch
 import numpy as np
-from pathlib import Path
 from PIL import Image
 from omegaconf import OmegaConf
 from diffusers import AutoencoderKL, DDIMScheduler
@@ -73,7 +83,6 @@ class AnimationEngine:
                 max_frames=240, steps=30, cfg_scale=2.5, fps=24, seed=3407):
         """
         skeleton_path: dir of per-frame .npy pose files in EchoMimicV2's format
-                       (produced by the pose-conversion step — item #2, not yet built)
         audio_path: required — EchoMimicV2 has no audio-free mode
         """
         if self.pipe is None:
